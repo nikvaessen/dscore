@@ -98,7 +98,8 @@ class Scores(namedtuple(
         'Scores',
         ['file_id', 'der', 'jer', 'bcubed_precision', 'bcubed_recall',
          'bcubed_f1', 'tau_ref_sys', 'tau_sys_ref', 'ce_ref_sys',
-         'ce_sys_ref', 'mi', 'nmi'])):
+         'ce_sys_ref', 'mi', 'nmi', 'scored_speaker_time', 
+         'miss_speaker_time', 'fa_speaker_time', 'error_speaker_time'])):
     """Structure containing metrics.
 
     Parameters
@@ -146,6 +147,18 @@ class Scores(namedtuple(
 
     nmi : float
         Normalized mutual information.
+
+    scored_speaker_time: float
+        total time scored in the reference
+    
+    miss_speaker_time: float
+        scored time that a hypothesized non-speech segment corresponds to a reference speaker segment
+
+    fa_speaker_time: float
+        scored time that a hypothesized speaker is labelled as a non-speech in the reference
+
+    error_speaker_time: float
+        scored time that a speaker ID is assigned to the wrong speaker
     """
     __slots__ = ()
 
@@ -228,15 +241,17 @@ def score(ref_turns, sys_turns, uem, step=0.010, nats=False, jer_min_ref_dur=0.0
     # consistency with how the clustering metrics were computed in DIHARD I.
 
     # Compute DER. This bit is slow as it relies on NIST's perl script.
-    file_to_der, global_der = metrics.der(
+    file_to_der_related, global_der_related = metrics.der(
         ref_turns, sys_turns, uem=uem, **kwargs)
+    (file_to_der, file_to_scored, file_to_miss, file_to_fa, file_to_error) = file_to_der_related
+    (global_der, global_scored, global_miss, global_fa, global_error) = global_der_related
 
     # Compute JER.
     file_to_jer, global_jer = metrics.jer(
         file_to_ref_durs, file_to_sys_durs, file_to_jer_cm, jer_min_ref_dur)
 
     # Compute clustering metrics.
-    def compute_metrics(fid, cm, der, jer):
+    def compute_metrics(fid, cm, der, jer, scored, miss, fa, error):
         bcubed_precision, bcubed_recall, bcubed_f1 = metrics.bcubed(
             None, None, cm)
         tau_ref_sys, tau_sys_ref = metrics.goodman_kruskal_tau(
@@ -246,12 +261,16 @@ def score(ref_turns, sys_turns, uem, step=0.010, nats=False, jer_min_ref_dur=0.0
         mi, nmi = metrics.mutual_information(None, None, cm, nats)
         return Scores(
             fid, der, jer, bcubed_precision, bcubed_recall, bcubed_f1,
-            tau_ref_sys, tau_sys_ref, ce_ref_sys, ce_sys_ref, mi, nmi)
+            tau_ref_sys, tau_sys_ref, ce_ref_sys, ce_sys_ref, mi, nmi,
+            scored, miss, fa, error)
     file_scores = []
     for file_id, cm in iteritems(file_to_cm):
         file_scores.append(compute_metrics(
-            file_id, cm, file_to_der[file_id], jer=file_to_jer[file_id]))
+            file_id, cm, file_to_der[file_id], jer=file_to_jer[file_id],
+            scored=file_to_scored[file_id], miss=file_to_miss[file_id],
+            fa=file_to_fa[file_id], error=file_to_error[file_id]))
     global_scores = compute_metrics(
-        '*** OVERALL ***', global_cm, global_der, global_jer)
+        '*** OVERALL ***', global_cm, global_der, global_jer, global_scored,
+        global_miss, global_fa, global_error)
 
     return file_scores, global_scores

@@ -489,6 +489,10 @@ def der(ref_turns, sys_turns, collar=0.0, ignore_overlaps=False, uem=None):
     # for said file.
     file_to_der_base = dict(zip(file_ids, ders))
     file_to_der = {}
+    file_to_score = dict(zip(file_ids, scored_speaker_times))
+    file_to_miss = dict(zip(file_ids, miss_speaker_times))
+    file_to_fa = dict(zip(file_ids, fa_speaker_times))
+    file_to_error = dict(zip(file_ids, error_speaker_times))
     for file_id in uem:
         try:
             der = file_to_der_base[file_id]
@@ -501,8 +505,13 @@ def der(ref_turns, sys_turns, collar=0.0, ignore_overlaps=False, uem=None):
             der = 100. if n_sys_turns else 0.0
         file_to_der[file_id] = der
     global_der = file_to_der_base['ALL']
-
-    return file_to_der, global_der
+    global_score = file_to_score['ALL']
+    global_miss = file_to_miss['ALL']
+    global_fa = file_to_fa['ALL']
+    global_error = file_to_error['ALL']
+    file_tos = (file_to_der, file_to_score, file_to_miss, file_to_fa, file_to_error)
+    global_s = (global_der, global_score, global_miss, global_fa, global_error)
+    return file_tos, global_s
 
 
 def jer(file_to_ref_durs, file_to_sys_durs, file_to_cm, min_ref_dur=0):
